@@ -1,0 +1,262 @@
+
+---
+- hosts: nodes
+  gather_facts: no
+  user: root
+
+  tasks:
+    - name: Wait 60 seconds, but only start checking after 0 seconds
+      wait_for_connection:
+        delay: 0
+        timeout: 60
+
+- hosts: nodes
+  become: true
+  user: root
+
+  tasks:
+
+    - name: Add the nf_conntrack_ipv4 module
+      ignore_errors: yes
+      modprobe:
+        name: nf_conntrack_ipv4
+        state: present
+
+    - name: Add the nfnetlink module
+      ignore_errors: yes
+      modprobe:
+        name: nfnetlink
+        state: present
+
+    - name: Add the udp_tunnel module
+      ignore_errors: yes
+      modprobe:
+        name: udp_tunnel
+        state: present
+
+    - name: Add the veth module
+      ignore_errors: yes
+      modprobe:
+        name: veth
+        state: present
+
+    - name: Add the vxlan module
+      ignore_errors: yes
+      modprobe:
+        name: vxlan
+        state: present
+
+    - name: Add the x_tables module
+      ignore_errors: yes
+      modprobe:
+        name: x_tables
+        state: present
+
+    - name: Add the xt_addrtype module
+      ignore_errors: yes
+      modprobe:
+        name: xt_addrtype
+        state: present
+
+    - name: Add the xt_conntrack module
+      ignore_errors: yes
+      modprobe:
+        name: xt_conntrack
+        state: present
+
+    - name: Add the xt_comment module
+      ignore_errors: yes
+      modprobe:
+        name: xt_comment
+        state: present
+
+    - name: Add the xt_mark module
+      ignore_errors: yes
+      modprobe:
+        name: xt_mark
+        state: present
+
+    - name: Add the xt_multiport module
+      ignore_errors: yes
+      modprobe:
+        name: xt_multiport
+        state: present
+
+    - name: Add the xt_nat module
+      ignore_errors: yes
+      modprobe:
+        name: xt_nat
+        state: present
+
+    - name: Add the xt_recent module
+      ignore_errors: yes
+      modprobe:
+        name: xt_recent
+        state: present
+
+    - name: Add the xt_set module
+      ignore_errors: yes
+      modprobe:
+        name: xt_set
+        state: present
+
+    - name: Add the xt_statistic module
+      ignore_errors: yes
+      modprobe:
+        name: xt_statistic
+        state: present
+
+    - name: Add the xt_tcpudp module
+      ignore_errors: yes
+      modprobe:
+        name: xt_tcpudp
+        state: present
+
+    - name: Add the nf_defrag_ipv4 module
+      ignore_errors: yes
+      modprobe:
+        name: nf_defrag_ipv4
+        state: present
+
+    - name: Add the nf_nat module
+      ignore_errors: yes
+      modprobe:
+        name: nf_nat
+        state: present
+
+    - name: Add the br_netfilter module
+      ignore_errors: yes
+      modprobe:
+        name: br_netfilter
+        state: present
+
+    - name: Add the ip6_udp_tunnel module
+      ignore_errors: yes
+      modprobe:
+        name: ip6_udp_tunnel
+        state: present
+
+    - name: Add the ip_set module
+      ignore_errors: yes
+      modprobe:
+        name: ip_set
+        state: present
+
+    - name: Add the ip_set_hash_ip module
+      ignore_errors: yes
+      modprobe:
+        name: ip_set_hash_ip
+        state: present
+
+    - name: Add the ip_set_hash_net module
+      ignore_errors: yes
+      modprobe:
+        name: ip_set_hash_net
+        state: present
+
+    - name: Add the iptable_filter module
+      ignore_errors: yes
+      modprobe:
+        name: iptable_filter
+        state: present
+
+    - name: Add the iptable_nat module
+      ignore_errors: yes
+      modprobe:
+        name: iptable_nat
+        state: present
+
+    - name: Add the iptable_mangle module
+      ignore_errors: yes
+      modprobe:
+        name: iptable_mangle
+        state: present
+
+    - name: Add the iptable_raw module
+      ignore_errors: yes
+      modprobe:
+        name: iptable_raw
+        state: present
+
+    - name: Add the nf_conntrack_netlink module
+      ignore_errors: yes
+      modprobe:
+        name: nf_conntrack_netlink
+        state: present
+
+    - name: Add the nf_conntrack module
+      ignore_errors: yes
+      modprobe:
+        name: nf_conntrack
+        state: present
+
+    - name: Add the nf_nat_ipv4 module
+      ignore_errors: yes
+      modprobe:
+        name: nf_nat_ipv4
+        state: present
+
+    - name: Add the nf_nat_masquerade_ipv4 module
+      ignore_errors: yes
+      modprobe:
+        name: nf_nat_masquerade_ipv4
+        state: present
+
+    - name: Install aptitude using apt
+      apt: name=aptitude state=latest update_cache=yes force_apt_get=yes
+
+    #- name: Upgrade the OS (apt-get dist-upgrade)
+    #  apt:
+    #    upgrade: dist
+
+    - name: Install required system packages
+      apt: name={{ item }} state=latest update_cache=yes
+      loop: [ 'apt-transport-https', 'ca-certificates', 'curl', 'software-properties-common', 'gnupg-agent']
+
+    - name: Add Docker GPG apt Key
+      apt_key:
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+    - name: Add Docker Repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/debian buster stable
+        state: present
+
+    - name: Update apt and install docker-ce
+      apt: update_cache=yes name={{ item }} force=True
+      loop: [ "docker-ce={{ docker_version }}", "docker-ce-cli={{ docker_version }}", 'containerd.io']
+
+    - name: Prevent docker-ce from being upgraded
+      dpkg_selections:
+        name: docker-ce
+        selection: hold
+
+    - name: Prevent docker-ce-cli from being upgraded
+      dpkg_selections:
+        name: docker-ce-cli
+        selection: hold
+
+    - name: Set ipv4 forwarding to enabled
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+
+    - name: Set ipv6 forwarding to enabled
+      sysctl:
+        name: net.ipv6.conf.default.forwarding
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes
+
+    - name: Set bridge nf call iptables to enabled
+      sysctl:
+        name: net.bridge.bridge-nf-call-iptables
+        value: '1'
+        sysctl_set: yes
+        state: present
+        reload: yes

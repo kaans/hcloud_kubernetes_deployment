@@ -1,0 +1,404 @@
+= Automated Kubernetes cluster creation on Hetzner Cloud
+
+== Prerequisites
+
+=== Install ansible
+
+See https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible-on-ubuntu
+
+Instructions for Ubuntu-based Linux distribution:
+
+[source,bash]
+----
+sudo apt update
+sudo apt install software-properties-common
+sudo apt-add-repository --yes --update ppa:ansible/ansible
+sudo apt install ansible
+----
+
+=== Install terraform
+
+See https://learn.hashicorp.com/tutorials/terraform/install-cli
+
+Instructions for Ubuntu-based Linux distribution:
+
+[source,bash]
+----
+curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo apt-key add -
+sudo apt-add-repository "deb [arch=amd64] https://apt.releases.hashicorp.com $(lsb_release -cs) main"
+sudo apt-get update && sudo apt-get install terraform
+----
+
+=== Install kubectl
+
+See https://kubernetes.io/de/docs/tasks/tools/install-kubectl/
+
+Instructions for Ubuntu-based Linux distribution:
+
+[source,bash]
+----
+sudo apt-get update && sudo apt-get install -y apt-transport-https
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y kubectl
+----
+
+=== Enable shell autocompletion
+
+If you use zsh or bash shell, you can add autocompletion of kubectl commands to the shell.
+See
+https://kubernetes.io/docs/tasks/tools/install-kubectl/#enabling-shell-autocompletion[enabling shell autocompletion]
+in the kubernetes documentation.
+
+.Add autocompletion to zsh
+[source,bash]
+----
+echo 'alias k=kubectl' >>~/.zshrc
+echo 'complete -F __start_kubectl k' >>~/.zshrc
+source ~/.zshrc
+----
+
+=== Automatically use generated kube config in shell
+
+The terraform scripts stores the kubernetes config in the file _kube_config.yaml_ in the
+folder _terraform_ after the cluster has been created successfully.
+This configuration can be added to the kubectl cli tool automatically by adding the path to the file to
+the environment variable _KUBECONFIG_.
+
+Below is an example of how to add the path to the file  to the environment variable in a shell.
+The `export` command can also be added to a shell initialization script like `~/.zshrc` (zsh) or `~/.bashrc` (bash).
+
+.Add path to _kube_config.yaml_ to env variable `KUBECONFIG`
+[source,bash]
+----
+    export KUBECONFIG=$KUBECONFIG:<path_to_project_root>/terraform/kube_config.yaml
+----
+
+=== Add ssh key to local agent
+
+Ansible connects to the created Hetzner servers via _SSH_ protocol to provision the servers.
+The same (public and private) key which is used for SSH by terraform when creating the servers
+also needs to be used by ansible to access the servers.
+Ansible is not configured to use the ssh keys which are located in the project,
+but requires an ssh agent to provide the keys to ansible when connecting via SSH.
+Although possible, the ssh keys need to be provided by an ssh agent in case they are
+(and should be) password protected. The ssh agent allows the user to
+just enter the password once and ansible can use the SSH keys without asking the
+user to enter the passwort everytime ansible tries to connect to the SSH hosts.
+
+Common solutions for SSH agents are:
+
+* https://man.openbsd.org/ssh-agent.1[ssh-agent from OpenSSH], see https://www.ssh.com/ssh/agent[for a tutorial]
+* https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html[Pageant] for Windows
+
+==== Example using ssh-agent
+
+Make sure the ssh agent is up and running:
+
+[source,bash]
+----
+eval "$(ssh-agent -s)"
+----
+
+It should return the pid of the agent (e.g. `Agent pid 1599`) if the agent is running.
+
+Add the private key which is allowed to log in to the remote servers via ssh (replace ~/.ssh/id_rsa
+with the actual location of the desired ssh key):
+
+[source,bash]
+----
+ssh-add ~/.ssh/id_rsa
+----
+
+== Configuration
+
+=== Remote backend for state storage
+
+Without any further configuration, the terraform state is stored locally on the computer where terraform is executed.
+Alternatively, the state can be store on a
+https://www.terraform.io/docs/language/settings/backends/remote.html[remote backend].
+Just add a new .tf file (e.g. named _remote_backend.tf_, that file is already ignored in git)
+and include the configuration there.
+
+.Example _remote_backend.tf_ for usage with https://app.terraform.io/[Terraform Cloud]
+[source]
+----
+terraform {
+  backend "remote" {
+    hostname     = "app.terraform.io"
+    organization = "you-organization"
+
+    workspaces {
+      name = "your-workspace"
+    }
+  }
+}
+----
+
+=== Terraform variables
+
+The configuration for terraform can be configured by adding a file named `terraform.tfvars` to the folder
+_terraform_. It can contain a list of configuration values with one configuration entry in the form
+of `key=value` per line.
+
+.Example configuration (replace the values with your actual values):
+[source, text]
+----
+/****
+* SSH keys
+****/
+ssh_public_key  = "ssh-rsa AAAA...."
+ssh_private_key = <<EOT
+Paster your private key between <<EOT and EOT, for example:
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAAB....
+-----END OPENSSH PRIVATE KEY-----
+EOT
+
+/****
+* Hetzner cloud config
+****/
+hcloud_token                               = "ABcdE123..."
+hcloud_csi_enable                          = true
+
+hcloud_nodes = [
+  {
+    id          = 1
+    server_type = "cx11"
+    image       = "ubuntu-20.04"
+    location    = "nbg1"
+    keep_disk   = true
+    roles       = ["controlplane", "etcd"]
+  },
+  {
+    id          = 2
+    server_type = "cx21"
+    image       = "ubuntu-20.04"
+    location    = "nbg1"
+    keep_disk   = true
+    roles       = ["worker"]
+  },
+  /*
+  {
+    id = 3
+    server_type = "cx21"
+    image       = "ubuntu-20.04"
+    location    = "nbg1"
+    keep_disk   = true
+    roles       = ["worker"]
+  }
+  */
+]
+
+/****
+* Kubernetes config
+****/
+k8s_print_config_enable                    = true
+dashboard_enable                           = true
+
+/****
+* cloudflare
+****/
+cloudflare_enable                          = true
+cloudflare_api_token                       = "ABcdEF123..."
+cloudflare_dns_name                        = "cluster"
+cloudflare_zone_id                         = "abcdef123..."
+kubernetes_dns_name                = "cluster.domain.com"
+----
+
+=== Configure Hetzner cloud
+
+An API token is needed for terraform to be able to connect to Hetzner cloud and create resource.
+To obtain an API token, first create or open a project in https://console.hetzner.cloud[Hetzner cloud console]
+where the servers of the cluster should be created. Then add a token under _Security_ -> _API-Tokens_.
+The token must have _read_ and _write_ access.
+Store the token at a safe place where it is not accessible by others and copy its value to the configuration
+option `hcloud_token`.
+
+=== Configure SSH keys
+
+SSH keys are necessary for the scripts to connect to the servers of the cluster. A private and the corresponding
+public key must be stored in the configuration.
+The public key (configuration `ssh_public_key`) is stored on the servers so that they can be accessed via SSH after they have been created.
+The private key (configuration `ssh_private_key`)  is used by the rke_cluster provider in terraform to connect to the servers and
+to install the kubernetes cluster.
+
+Ansible also uses SSH to connect to the servers to provision them, but for ansible the SSH keys must be provided
+by an SSH agent. See the section about prerequisites for more details.
+
+=== Configure the servers
+
+
+The servers that will be created in Hetzner cloud can be configured with the configuration
+option `hcloud_nodes`.
+It is an array of objects which describe each server that will be created. You can add as many servers
+to the array as your cluster requires. Furthermore, you can configure the https://www.hetzner.com/cloud[type
+of the server], the location and optionally the image of the server.
+
+WARNING: Changing the image of the server might be incompatible to the terraform and ansible scripts.
+
+In addition, each server can be assigned one of the three roles in a kubernetes cluster:
+
+* controlplane
+* etcd
+* worker
+
+See https://rancher.com/docs/rancher/v2.x/en/cluster-provisioning/production/recommended-architecture/[the
+rancher documentation] for an example of a recommended cluster architecture.
+
+.Example configuration of Hetzner servers for a cluster with one etcd/controlplane node and 2 workers.
+[source,bash]
+----
+hcloud_nodes = [
+  {
+    id          = 1
+    server_type = "cx11"
+    image       = "ubuntu-20.04"
+    location    = "nbg1"
+    keep_disk   = true
+    roles       = ["controlplane", "etcd"]
+  },
+  {
+    id          = 2
+    server_type = "cx31"
+    image       = "ubuntu-20.04"
+    location    = "nbg1"
+    keep_disk   = true
+    roles       = ["worker"]
+  },
+  {
+    id = 3
+    server_type = "cx31"
+    image       = "ubuntu-20.04"
+    location    = "nbg1"
+    keep_disk   = true
+    roles       = ["worker"]
+  }
+]
+----
+
+=== Configure cloudflare
+
+Cloudflare can optionally be enabled and configured to automatically create a DNS entry that points
+to the floating IP address of the cluster. Setting `cloudflare_enable=true` in the configuration enables
+the cloudflare module, otherwise the module is disabled.
+
+The cloudflare module needs an API token to be able to access the API. To generate an API token, open
+the https://dash.cloudflare.com/profile/api-tokens[API-Token] page under `My Profile`
+on the https://dash.cloudflare.com[the cloudflare dash] and create a new token.
+
+The token must have at least the following permissions:
+
+* Zone settings: edit
+* Zone: edit
+* DNS: edit
+
+Optionally, you can limit the scope to specific zones and, thus, limit the permissions to only
+the zone that is relevant for the kubernetes cluster creation.
+
+Store the token at a safe place where it is not accessible by others and copy its value to
+the configuration option `cloudflare_api_token`.
+
+=== Configure the hostname and domain
+
+The domain under which the cluster will be reachable can be automatically configured by the scripts.
+
+It can first be set as the reverse DNS entry in the floating IP address in Hetzner.
+The configuration `kubernetes_dns_name` needs to point to a full domain name that resolves to the floating IP
+address, for example `cluster.domain.com`.
+
+In addition, a domain entry can automatically be added to cloudflare pointing to the floating IP address.
+If enabled by the configuration `cloudflare_enable=true`, the configuration `cloudflare_dns_name` must contain the
+subdomain part of the domain, for example `cluster` (instead of `cluster.domain.com`).
+The configuration `cloudflare_zone_id` must contain the zone id of the domain where the entry should be
+added to. The _zone id_ can be found on the Overview page of the domain on https://dash.cloudflare.com[the
+cloudflare website].
+
+If the automatic configuration is not needed, the cloudflare module can be disabled (default) with the
+configuration `cloudflare_enable=false`.
+
+
+=== Reference of terraform configuration values
+
+
+.Terraform configuration values
+|===
+
+| Variable name | Data type | Default value | Description
+
+| hcloud_token | string | - | Token for the Hetzner cloud project where the servers will be created
+| ssh_public_key | string | - | SSH public key used to connect to the servers
+| ssh_private_key | string | - | SSH private key used to connect to the servers
+| kubernetes_dns_name | string | - | Domain name that should point to the cluster. This is set as reverse DNS entry in the floating IP in Hetzner cloud.
+| ansible_inventory_output_file_path | string | ../ansible/inventory.cfg | Path where the dynamic inventory with the created servers for Ansible is stored. If modified, make sure to adjust ansible.cfg accordingly.
+| cloudflare_api_token | string | - | API Token for cloudflare. Used to set up the DNS entry in cloudflare.
+| cloudflare_dns_name | string | - | DNS name set up in cloudflare that should point to the floating IP of the cluster. This should not be the full domain but the subdomain part, e.g. cluster instead of cluster.domain.com.
+| cloudflare_zone_id | string | - | Zone ID of the zone of the domain in cloudflare.
+| hcloud_nodes | string | - | List of servers that make up the cluster
+| hcloud_private_network_name | string | k8s | Name of the Hetzner cloud private network
+| hcloud_private_network_enable | string | true | Enable use of private Hetzner network for pods; need to specify the name of the network in hcloud_private_network_name. This must be enabled in order for the hcloud_cloud_controller to initialize with a node IP from the cloud provider.
+| hcloud_csi_enable | string | false | If true, enable HCloud CSI plugin; else disable it
+| hcloud_cloud_controller_enable | string | true | If true, enable HCloud Cloud Controller plugin; else disable it. This must be true in order for the cluster to be initialized with the cloud provider. Note that the cloud controller is always enabled if the hcloud csi plugin is installed
+| k8s_print_config_enable | string | false | If true, enable the output of the kubernetes config; else do not output it
+| cloudflare_enable | string | false | If true, enable registration of the cluster on a DNS record in cloudflare; else do not register it
+| dashboard_enable | string | false | If true, enable the Kubernetes dashboard; else disable it
+|===
+
+== Create the cluster
+
+[source,bash]
+----
+cd terraform
+terraform apply
+----
+
+or auto approve the deployment:
+
+[source,bash]
+----
+cd terraform
+terraform apply --auto-approve
+----
+
+== Destroy the cluster
+
+Set `state: absent` in main.yaml
+
+[source,bash]
+----
+cd terraform
+terraform destroy
+----
+
+== Kubernetes
+
+=== Access the Kubernetes dashboard
+
+==== Get access token for the dashboard
+
+[source,bash]
+----
+kubectl -n kubernetes-dashboard describe secret $(kubectl -n kubernetes-dashboard get secret | grep admin-user | awk '{print $1}') | grep ^token: | awk '{ print $2 }'
+----
+
+==== Start the kubernetes dashboard
+
+[source,bash]
+----
+kubectl proxy
+----
+
+==== Open the dashboard in a browser
+
+http://localhost:8001/api/v1/namespaces/kubernetes-dashboard/services/https:kubernetes-dashboard:https/proxy/#/login
+
+=== Run a bash interactively in the cluster
+
+Start a temporary pod with busybox image and open a terminal. This can be useful when needing
+to debug the cluster or access resources from inside the cluster.
+
+[source,bash]
+----
+kubectl run -i --tty busybox --image=busybox --restart=Never -- sh
+----

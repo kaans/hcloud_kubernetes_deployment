@@ -1,0 +1,11 @@
+.terraform
+/*.tfstate*
+/*.tfvars
+ssh/*
+!ssh/.gitkeep
+/*.plan
+/secrets/
+kube_config_cluster.yaml
+kube_config.yaml
+**/terraform-provider-rke-*
+terraform_backend

@@ -1,0 +1,36 @@
+name: install kubernetes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup_hetzner:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: "./terraform"
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: HashiCorp - Setup Terraform
+        uses: hashicorp/setup-terraform@v1.2.0
+        with:
+          cli_config_credentials_token: ${{ secrets.tf_cloud_token }}
+        env:
+          TF_LOG: DEBUG
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check -diff -recursive
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
