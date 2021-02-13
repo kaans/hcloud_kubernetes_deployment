@@ -15,18 +15,22 @@ output "gateway_dns" {
 }
 
 output "dashboard_token" {
-  value = join("", module.k8s_install_dashboard[*].dashboard_token)
+  value     = join("", module.k8s_install_dashboard[*].dashboard_token)
+  sensitive = true
 }
 
 output "kube_config_yaml" {
-  value = module.k8s_install.kube_config_yaml
+  value     = module.k8s_install.kube_config_yaml
+  sensitive = true
 }
+
 output "client_cert" {
   value = module.k8s_install.client_cert
 }
 
 output "client_key" {
-  value = module.k8s_install.client_key
+  value     = module.k8s_install.client_key
+  sensitive = true
 }
 
 output "ca_crt" {
@@ -38,11 +42,13 @@ output "api_server_url" {
 }
 
 output "internal_kube_config_yaml" {
-  value = module.k8s_install.internal_kube_config_yaml
+  value     = module.k8s_install.internal_kube_config_yaml
+  sensitive = true
 }
 
 output "rke_config_yaml" {
-  value = module.k8s_install.rke_cluster_yaml
+  value     = module.k8s_install.rke_cluster_yaml
+  sensitive = true
 }
 
 output "kube_admin_user" {

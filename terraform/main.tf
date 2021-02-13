@@ -7,7 +7,7 @@ provider "hcloud" {
 }
 
 provider "kubernetes" {
-  config_path = "kube_config.yaml"
+  config_path    = "kube_config.yaml"
   config_context = "local"
 
   client_certificate     = module.k8s_install.client_cert
@@ -18,7 +18,7 @@ provider "kubernetes" {
 
 provider "helm" {
   kubernetes {
-    config_path = "kube_config.yaml"
+    config_path    = "kube_config.yaml"
     config_context = "local"
 
     client_certificate     = module.k8s_install.client_cert
@@ -115,7 +115,7 @@ module "k8s_hcloud_provider" {
   hcloud_token                  = var.hcloud_token
   hcloud_private_network_name   = var.hcloud_private_network_name
   hcloud_private_network_enable = var.hcloud_private_network_enable
-  hcloud_csi_enable = var.hcloud_csi_enable
+  hcloud_csi_enable             = var.hcloud_csi_enable
 }
 
 module "k8s_install_dashboard" {
