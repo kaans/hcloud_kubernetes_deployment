@@ -36,3 +36,15 @@ output "ca_crt" {
 output "api_server_url" {
   value = module.k8s_install.api_server_url
 }
+
+output "internal_kube_config_yaml" {
+  value = module.k8s_install.internal_kube_config_yaml
+}
+
+output "rke_config_yaml" {
+  value = module.k8s_install.rke_cluster_yaml
+}
+
+output "kube_admin_user" {
+  value = module.k8s_install.kube_admin_user
+}

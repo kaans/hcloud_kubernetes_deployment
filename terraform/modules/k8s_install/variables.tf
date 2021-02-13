@@ -19,3 +19,9 @@ variable "ssh_private_key" {
 }
 
 variable "hcloud_token" {}
+
+variable "cluster_name" {
+  description = "Name of the cluster used in the kube config"
+  type = string
+  default = "local"
+}

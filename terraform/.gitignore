@@ -9,3 +9,4 @@ kube_config_cluster.yaml
 kube_config.yaml
 **/terraform-provider-rke-*
 terraform_backend
+remote_backend.tf
