@@ -41,7 +41,7 @@ provider "cloudflare" {
 ####
 
 module "hcloud_create" {
-  source = "./modules/hcloud_create"
+  source = "..\/modules\/hcloud_create"
 
   ssh_public_key              = var.ssh_public_key
   kubernetes_dns_name         = var.kubernetes_dns_name
@@ -51,7 +51,7 @@ module "hcloud_create" {
 }
 
 module "ansible_inventory" {
-  source = "./modules/ansible_inventory"
+  source = "..\/modules\/ansible_inventory"
 
   depends_on = [
     module.hcloud_create
@@ -62,7 +62,7 @@ module "ansible_inventory" {
 }
 
 module "ansible_install_docker" {
-  source = "./modules/ansible_install_docker"
+  source = "..\/modules\/ansible_install_docker"
 
   nodes = module.hcloud_create.external_ips
 
@@ -75,7 +75,7 @@ module "ansible_install_docker" {
 }
 
 module "k8s_install" {
-  source = "./modules/k8s_install"
+  source = "..\/modules\/k8s_install"
 
   depends_on = [
     module.ansible_install_docker
@@ -90,7 +90,7 @@ module "k8s_install" {
 }
 
 module "cloudflare" {
-  source = "./modules/cloudflare"
+  source = "..\/modules\/cloudflare"
 
   count = var.cloudflare_enable ? 1 : 0
 
@@ -100,7 +100,7 @@ module "cloudflare" {
 }
 
 module "k8s_print_config" {
-  source = "./modules/k8s_print_config"
+  source = "..\/modules\/k8s_print_config"
 
   count = var.k8s_print_config_enable ? 1 : 0
 
@@ -108,7 +108,7 @@ module "k8s_print_config" {
 }
 
 module "k8s_hcloud_provider" {
-  source = "./modules/k8s_hcloud_provider"
+  source = "..\/modules\/k8s_hcloud_provider"
 
   count = var.hcloud_cloud_controller_enable || var.hcloud_csi_enable ? 1 : 0
 
@@ -119,7 +119,7 @@ module "k8s_hcloud_provider" {
 }
 
 module "k8s_install_dashboard" {
-  source = "./modules/k8s_install_dashboard"
+  source = "..\/modules\/k8s_install_dashboard"
 
   count = var.dashboard_enable ? 1 : 0
 }
