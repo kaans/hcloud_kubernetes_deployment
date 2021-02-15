@@ -1,7 +1,3 @@
-/**
-* Floating IPs
-*/
-
 resource "hcloud_ssh_key" "user_access" {
   name       = "user_access"
   public_key = var.ssh_public_key
@@ -19,7 +15,7 @@ resource "hcloud_floating_ip_assignment" "gateway" {
 }
 
 resource "hcloud_rdns" "floating_gateway" {
-  count = length(var.kubernetes_dns_name) > 0 ? 1 : 0
+  count          = length(var.kubernetes_dns_name) > 0 ? 1 : 0
   floating_ip_id = hcloud_floating_ip.gateway.id
   ip_address     = hcloud_floating_ip.gateway.ip_address
   dns_ptr        = var.kubernetes_dns_name

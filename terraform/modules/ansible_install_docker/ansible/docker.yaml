@@ -1,6 +1,6 @@
 
 ---
-- hosts: nodes
+- hosts: all
   gather_facts: no
   user: root
 
@@ -10,7 +10,7 @@
         delay: 0
         timeout: 60
 
-- hosts: nodes
+- hosts: all
   become: true
   user: root
 
